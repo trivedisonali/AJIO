@@ -1,0 +1,172 @@
+1.] BaseClass
+===============
+public class BaseClass {
+	public WebDriver driver;
+	public HomePage homePg;
+
+	/**
+	 * This method can be used to open the database
+	 */
+	@BeforeSuite(groups = {"smoke", "regression"})
+	public void openDatabaseConnection() {
+		CommonDatabaseUtility.openConnection(ConstantPathsUtility.dbUrl, 
+				CommonPropertiesUtility.getValueFromProperties(ConstantPathsUtility.PropertyFilePath, "dbUserName"), 
+				CommonPropertiesUtility.getValueFromProperties(ConstantPathsUtility.PropertyFilePath, "dbPassword"));
+		CommonExcelUtility.openExcelFile(ConstantPathsUtility.ExcelPath);
+	}
+
+	/**
+	 * This method can be used to launch the browser
+	 */
+	@BeforeClass(groups = {"smoke", "regression"})
+	public void launchBrowser() {
+		String browser = CommonPropertiesUtility.getValueFromProperties(ConstantPathsUtility.PropertyFilePath, "browser");
+		String timeout = CommonPropertiesUtility.getValueFromProperties(ConstantPathsUtility.PropertyFilePath, "timeout");
+		long longTimeout = CommonJavaUtility.convertStringToLong(timeout);
+		String url = CommonPropertiesUtility.getValueFromProperties(ConstantPathsUtility.PropertyFilePath, "url");
+
+		if (browser.equalsIgnoreCase("chrome")) {
+			WebDriverManager.chromedriver().setup();
+			driver = new ChromeDriver();
+		}
+		else if (browser.equalsIgnoreCase("firefox")) {
+			WebDriverManager.firefoxdriver().setup();
+			driver = new FirefoxDriver();
+		}
+		else 
+			Reporter.log("Browser is not specified", true);
+
+		CommonWebDriverUtility.maximizeBrowserWindow(driver);
+		CommonWebDriverUtility.implicitWait(driver, longTimeout);
+		CommonWebDriverUtility.navigateMainUrl(driver, url);
+	}
+
+
+	/**
+	 * This method can be used to login to the application
+	 */
+	@BeforeMethod(groups = {"smoke", "regression"})
+	public void loginToApplication() {
+		LoginPage loginPg = new LoginPage(driver);
+		loginPg.loginToApplication(CommonPropertiesUtility.getValueFromProperties(ConstantPathsUtility.PropertyFilePath, "userName")
+				, CommonPropertiesUtility.getValueFromProperties(ConstantPathsUtility.PropertyFilePath, "password"));
+		homePg = new HomePage(driver);
+	}
+
+	/**
+	 * This method can be used to logout to the application
+	 */
+	@AfterMethod(groups = {"smoke", "regression"})
+	public void logoutToApplication() {
+		homePg.logoutToApplication(driver);
+	}
+
+	/**
+	 * This method can be used to close the browser
+	 */
+	@AfterClass(groups = {"smoke", "regression"})
+	public void closeBrowserWindow() {
+		CommonWebDriverUtility.closeAllBroserWindow(driver);
+	}
+
+	/**
+	 * This method can be used to close the database
+	 */
+	@AfterSuite(groups = {"smoke", "regression"})
+	public void closeDatabaseConnection() {
+		CommonDatabaseUtility.closeConnection();
+		CommonExcelUtility.closeExcelFile();
+	}
+}
+
+
+2.] CreateContactAlongWithOrganization
+====================================
+public class CreateContactAlongWithOrganizationTest extends BaseClass {
+
+	@Test(groups = "regression")
+	public void createContactAlongWithOrganizationTest() {
+
+		String orgName = CommonExcelUtility.getDataFromExcel("SDET33", 10, 0);
+		String lastName = CommonExcelUtility.getDataFromExcel("SDET33", 10, 1);
+
+		int randomNumber = CommonJavaUtility.randomNumbers(1000);
+		String expectedOrgName = orgName+randomNumber;
+		String expectedlastName = lastName+randomNumber;
+
+		homePg.clickOrganizationsLink();
+
+		OrganizationPage orgPage = new OrganizationPage(driver);
+		orgPage.clickCreateOrganizationIcon();
+
+		CreatingNewOrganizationPage creatingNewOrganizationPage = new CreatingNewOrganizationPage(driver);
+		creatingNewOrganizationPage.organizationNameTxtFld(expectedOrgName);
+		creatingNewOrganizationPage.clickSaveBtn();
+
+		OrganizationInformationPage orgInfoPg = new OrganizationInformationPage(driver);
+		String actualOrgName = orgInfoPg.getOrganizationNameText();
+
+		Assert.assertTrue(actualOrgName.equals(expectedOrgName));
+			
+		homePg.clickContactsLink();
+
+		ContactsPage contactsPage = new ContactsPage(driver);
+		contactsPage.clickCreateContactIcon();
+
+		CreatingNewContactPage creatingNewContactPage = new CreatingNewContactPage(driver);
+		creatingNewContactPage.lastNameTxtFld(expectedlastName);
+		creatingNewContactPage.clickSelectOrgnizationNameIcon();
+
+		CommonWebDriverUtility.switchToWindow(driver, "Accounts");
+
+		OrganizationPageInCreatingNewContactPage orgPgInCreatingNewContactPg = new OrganizationPageInCreatingNewContactPage(driver);
+		orgPgInCreatingNewContactPg.searchTxtFld(expectedOrgName);
+		orgPgInCreatingNewContactPg.clickSearchBtn();
+		driver.findElement(By.linkText(expectedOrgName)).click();;
+
+		CommonWebDriverUtility.switchToWindow(driver, "Contacts");
+
+		creatingNewContactPage.clickSaveBtn();
+
+		ContactInformationPage contactInfoPg = new ContactInformationPage(driver);
+		String actualLastName = contactInfoPg.getLastNameText();
+		String actOrgName = contactInfoPg.getOrgnizationNameText();
+
+		Assert.assertTrue(actualLastName.equals(expectedlastName) && actOrgName.equals(expectedOrgName));
+			//CommonExcelUtility.createDataInExistingRow(ConstantPathsUtility.ExcelPath, "SDET33", 10, 2, "PASS");
+	}
+}
+
+
+
+
+CreateContact
+=====================================
+public class CreateContactTest extends BaseClass {
+
+	@Test(groups = "smoke")
+	public void createContactTest() {
+
+		String lastName = CommonExcelUtility.getDataFromExcel("SDET33", 1, 0);
+
+		int randomNumber = CommonJavaUtility.randomNumbers(1000);
+		String expectedLastName = lastName+randomNumber;
+
+		homePg.clickContactsLink();
+
+		ContactsPage contactsPage = new ContactsPage(driver);
+		contactsPage.clickCreateContactIcon();
+
+		CreatingNewContactPage creatingNewContactPage = new CreatingNewContactPage(driver);
+		creatingNewContactPage.lastNameTxtFld(expectedLastName);
+		creatingNewContactPage.clickSaveBtn();
+
+		ContactInformationPage contactInfoPg = new ContactInformationPage(driver);
+		String actualLastName = contactInfoPg.getLastNameText();
+		Assert.assertTrue(actualLastName.equals(expectedLastName));
+			//CommonExcelUtility.createDataInExistingRow(ConstantPathsUtility.ExcelPath, "SDET33", 1, 1, "PASS");
+			Reporter.log("PASS: Contact is created", true);
+	}
+}
+
+
